@@ -7,28 +7,45 @@ from app.models import HealthCheck
 
 router = APIRouter()
 
-@router.get("/healthz", status_code=status.HTTP_200_OK)
+@router.get("/healthz")
 async def health_checks(request: Request, db: Session = Depends(get_db)):
     """
-    Health Check Endpoint:
-    - Inserts a record into the health_checks table.
-    - Returns HTTP 200 if successful, HTTP 503 if not.
-    - Ensures no payload or unsupported methods are allowed.
+    Health Check Endpoint
     """
+    # Check for payload in request
     if await request.body():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payload not allowed")
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", 
+                    "Pragma": "no-cache",
+                    "X-Content-Type-Options": "nosniff"}
+        )
 
     try:
         new_check = HealthCheck()
         db.add(new_check)
         db.commit()
-    except Exception as e:
+        return Response(
+            status_code=status.HTTP_200_OK,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "X-Content-Type-Options": "nosniff"}
+        )
+    except Exception:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database connection failed")
-
-    return Response(status_code=status.HTTP_200_OK, headers={"Cache-Control": "no-cache"})
+        return Response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "X-Content-Type-Options": "nosniff"}
+        )
 
 @router.api_route("/healthz", methods=["POST", "PUT", "DELETE", "PATCH"])
 async def method_not_allowed():
-    """Reject unsupported methods with 405"""
-    raise HTTPException(status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+    """Handle unsupported HTTP methods"""
+    return Response(
+        status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "X-Content-Type-Options": "nosniff"}
+    )
