@@ -49,3 +49,13 @@ async def method_not_allowed():
                 "Pragma": "no-cache",
                 "X-Content-Type-Options": "nosniff"}
     )
+
+@router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def catch_all(path: str):
+    """Handle all undefined routes"""
+    return Response(
+        status_code=status.HTTP_404_NOT_FOUND,
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "X-Content-Type-Options": "nosniff"}
+    )
