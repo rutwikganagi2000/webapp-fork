@@ -12,8 +12,8 @@ async def health_checks(request: Request, db: Session = Depends(get_db)):
     """
     Health Check Endpoint
     """
-    # Check for payload in request
-    if await request.body():
+    # Check for payload in request body or query parameters
+    if await request.body() or request.query_params:
         return Response(
             status_code=status.HTTP_400_BAD_REQUEST,
             headers={"Cache-Control": "no-cache, no-store, must-revalidate", 
