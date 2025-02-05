@@ -48,11 +48,11 @@ sudo chown webapp:webapp /opt/csye6225
 
 # Deploy application from tmp folder
 echo "Deploying application..."
-sudo unzip /tmp/webapp-fork.zip -d /opt/csye6225/
+sudo unzip /tmp/Rutwik_Ganagi_002305290_02.zip -d /opt/csye6225/
 
 # Copy .env file from /tmp to application directory
 echo "Copying environment file..."
-cp /tmp/.env /opt/csye6225/webapp-fork/.env
+cp /tmp/.env /opt/csye6225/Rutwik_Ganagi_002305290_02/webapp/.env
 
 # Set correct permissions
 echo "Setting permissions..."
@@ -61,7 +61,7 @@ sudo chmod -R 755 /opt/csye6225
 
 # Setup Python virtual environment and install dependencies
 echo "Setting up Python environment..."
-cd /opt/csye6225/webapp-fork
+cd /opt/csye6225/Rutwik_Ganagi_002305290_02/webapp
 python3 -m venv venv
 source venv/bin/activate
 pip3 install -r requirements.txt

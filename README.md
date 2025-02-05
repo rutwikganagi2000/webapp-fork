@@ -39,3 +39,22 @@ uvicorn app.main:app --host 0.0.0.0 --port 8080
 - No manual database schema setup is required
 - The health check endpoint is available at `/healthz`
 
+## Testing
+Run the following command for API testing:
+pytest tests/ -v
+
+## Deployment
+For deploying the application on Ubuntu server, follow the below steps:
+1) Transfer the files to the server(Replace the ipv4):
+   scp -i ~/.ssh/do Rutwik_Ganagi_002305290_02.zip .env setup.sh root@206.81.5.175:/tmp
+2) Make the script executable:
+   chmod +x /tmp/setup.sh   
+3) Run the script:
+   sudo /tmp/setup.sh
+
+## Running the application on Ubuntu Server
+Follow the below commands:
+1) cd /opt/csye6225/Rutwik_Ganagi_002305290_02/webapp
+2) source venv/bin/activate
+3) uvicorn app.main:app --host 0.0.0.0 --port 8080
+
