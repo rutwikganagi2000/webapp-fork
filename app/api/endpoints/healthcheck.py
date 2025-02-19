@@ -44,7 +44,7 @@ async def health_checks(request: Request, db: Session = Depends(get_db)):
 async def method_not_allowed():
     """Handle unsupported HTTP methods"""
     return Response(
-        status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+        status_code=status.HTTP_406_NOT_ACCEPTABLE,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "X-Content-Type-Options": "nosniff"}
