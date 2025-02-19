@@ -7,7 +7,7 @@ from app.main import app
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
+# Loading environment variables
 load_dotenv()
 
 # Using test database URL from environment variable
