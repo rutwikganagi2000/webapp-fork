@@ -58,3 +58,15 @@ Follow the below commands:
 2) source venv/bin/activate
 3) uvicorn app.main:app --host 0.0.0.0 --port 8080
 
+## Continuous Integration (CI)
+The project uses GitHub Actions for CI/CD pipeline:
+
+### CI Workflow
+- Automatically runs on pull requests to main branch
+- Executes test suite against PostgreSQL database
+
+### Branch Protection
+- Enabled on main branch
+- Requires CI checks to pass before merging
+- Prevents direct pushes to main
+
