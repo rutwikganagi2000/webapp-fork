@@ -10,7 +10,7 @@ import os
 # Loading the environment variables
 load_dotenv()
 
-# Using test database URL from environment variable
+# Using test database URL from the environment variable
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
 @pytest.fixture
