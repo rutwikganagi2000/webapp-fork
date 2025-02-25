@@ -1,0 +1,41 @@
+name: Packer Template Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  packer-check:
+    runs-on: ubuntu-latest
+    name: Validate Packer Template
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: "latest"
+
+      - name: Run packer fmt check
+        id: fmt
+        working-directory: ./packer
+        run: |
+          packer fmt -check cloud.pkr.hcl
+        continue-on-error: false
+
+      - name: Run packer validate for AWS
+        id: validate_aws
+        working-directory: ./packer
+        run: |
+          packer init .
+          packer validate -only=build-csye6225-image.amazon-ebs.ubuntu -var 'postgres_password=dummy_password' cloud.pkr.hcl
+        continue-on-error: false
+        
+      - name: Run packer validate for GCP
+        id: validate_gcp
+        working-directory: ./packer
+        run: |
+          packer validate -only=build-csye6225-image.googlecompute.ubuntu -var 'postgres_password=dummy_password' -var 'gcp_project_id=dummy-project' cloud.pkr.hcl
+        continue-on-error: false
