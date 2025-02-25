@@ -90,6 +90,12 @@ build {
     timeout     = "5m"
   }
 
+  provisioner "file" {
+    source      = "${path.root}/../systemd/webapp.service"
+    destination = "/tmp/webapp.service"
+    timeout     = "5m"
+  }
+
   provisioner "shell" {
     script  = "setup.sh"
     timeout = "10m"

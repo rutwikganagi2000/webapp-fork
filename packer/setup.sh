@@ -49,16 +49,16 @@ EOF
 
 # Create application group
 echo "Creating application group..."
-sudo groupadd --system webapp || true
+sudo groupadd --system csye6225 || true
 
-# Create application user
+# Create application user with nologin shell
 echo "Creating application user..."
-sudo useradd --system --gid webapp --shell /bin/bash webapp || true
+sudo useradd --system --gid csye6225 --shell /usr/sbin/nologin csye6225 || true
 
 # Create application directory
 echo "Creating application directory..."
 sudo mkdir -p /opt/csye6225
-sudo chown webapp:webapp /opt/csye6225
+sudo chown csye6225:csye6225 /opt/csye6225
 
 # Unzip application files
 echo "Unzipping application..."
@@ -75,34 +75,22 @@ sudo cp /tmp/.env /opt/csye6225/webapp/.env
 
 # Set correct permissions
 echo "Setting permissions..."
-sudo chown -R webapp:webapp /opt/csye6225
+sudo chown -R csye6225:csye6225 /opt/csye6225
 sudo chmod -R 755 /opt/csye6225
 
 # Setup Python environment
 echo "Setting up Python environment..."
 cd /opt/csye6225/webapp
-sudo -u webapp python3 -m venv venv
-sudo -u webapp /opt/csye6225/webapp/venv/bin/pip3 install -r requirements.txt
+sudo -u csye6225 python3 -m venv venv
+sudo -u csye6225 /opt/csye6225/webapp/venv/bin/pip3 install -r requirements.txt
 
-# Create systemd service
-echo "Creating systemd service..."
-sudo tee /etc/systemd/system/webapp.service << EOF
-[Unit]
-Description=CSYE 6225 Web Application
-After=network.target postgresql.service
+# Copy systemd service file
+echo "Copying systemd service file..."
+sudo cp /tmp/webapp.service /etc/systemd/system/webapp.service
 
-[Service]
-User=webapp
-WorkingDirectory=/opt/csye6225/webapp
-Environment="PATH=/opt/csye6225/webapp/venv/bin"
-ExecStart=/opt/csye6225/webapp/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Enable services
+# Reload systemd and enable services
 echo "Enabling services..."
+sudo systemctl daemon-reload
 sudo systemctl enable postgresql
 sudo systemctl enable webapp
 
