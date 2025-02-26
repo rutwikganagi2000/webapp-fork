@@ -57,17 +57,13 @@ sudo useradd --system --gid csye6225 --shell /usr/sbin/nologin csye6225 || true
 
 # Create application directory
 echo "Creating application directory..."
-sudo mkdir -p /opt/csye6225
+sudo mkdir -p /opt/csye6225/webapp
 sudo chown csye6225:csye6225 /opt/csye6225
 
-# Unzip application files
+# Unzip application files directly to the target directory
 echo "Unzipping application..."
 cd /tmp
-unzip webapp.zip
-
-# Deploy application from tmp folder
-echo "Deploying application..."
-sudo mv /tmp/webapp /opt/csye6225/webapp
+sudo unzip -o webapp.zip -d /opt/csye6225/webapp
 
 # Copy .env file
 echo "Copying .env file..."
@@ -82,7 +78,7 @@ sudo chmod -R 755 /opt/csye6225
 echo "Setting up Python environment..."
 cd /opt/csye6225/webapp
 sudo -u csye6225 python3 -m venv venv
-sudo -u csye6225 /opt/csye6225/webapp/venv/bin/pip3 install -r requirements.txt
+sudo -u csye6225 /opt/csye6225/webapp/venv/bin/pip3 install -r /opt/csye6225/webapp/requirements.txt
 
 # Copy systemd service file
 echo "Copying systemd service file..."
