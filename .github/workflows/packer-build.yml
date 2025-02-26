@@ -1,13 +1,40 @@
 name: Build Packer Custom Images
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - main
 
 jobs:
-  integration-test:
+  check-merged:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - run: echo "PR was merged, proceeding with build"
+
+  integration-test:
+    needs: check-merged
+    runs-on: ubuntu-latest
+    
+    # Add PostgreSQL service container with secrets
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: test_healthcheck_db
+        ports:
+          - 5432:5432
+        # Health check to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,7 +51,12 @@ jobs:
           
       - name: Run tests
         run: |
-          python -m pytest
+          python -m pytest tests/ -v
+        env:
+          # Set database URL for testing with secrets
+          TEST_DATABASE_URL: postgresql+psycopg2://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/test_healthcheck_db
+          DATABASE_URL: postgresql+psycopg2://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/test_healthcheck_db
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
   build-artifact:
     needs: integration-test
@@ -95,4 +127,5 @@ jobs:
           packer build \
             -var "postgres_password=${{ secrets.POSTGRES_PASSWORD }}" \
             -var "gcp_project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var "aws_ami_users=${{ secrets.AWS_AMI_USERS }}" \
             cloud.pkr.hcl
