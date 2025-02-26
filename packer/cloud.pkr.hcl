@@ -33,6 +33,12 @@ variable "aws_instance_type" {
   default = "t2.micro"
 }
 
+variable "aws_ami_users" {
+  type        = list(string)
+  description = "List of AWS account IDs that can access the AMI"
+  default     = []
+}
+
 // GCP-specific variables
 variable "gcp_project_id" {
   type    = string
@@ -56,6 +62,7 @@ source "amazon-ebs" "ubuntu" {
   instance_type   = var.aws_instance_type
   source_ami      = var.aws_source_ami
   ssh_username    = "ubuntu"
+  ami_users       = var.aws_ami_users
   ami_description = "Ubuntu AMI for CSYE 6225"
 
   tags = {
