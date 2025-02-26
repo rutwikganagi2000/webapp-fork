@@ -1,0 +1,12 @@
+[Unit]
+Description=CSYE 6225 Web Application
+After=network.target postgresql.service
+
+[Service]
+User=csye6225
+WorkingDirectory=/opt/csye6225/webapp
+Environment="PATH=/opt/csye6225/webapp/venv/bin"
+ExecStart=/opt/csye6225/webapp/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
+
+[Install]
+WantedBy=multi-user.target

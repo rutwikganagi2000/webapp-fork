@@ -1,0 +1,98 @@
+name: Build Packer Custom Images
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run tests
+        run: |
+          python -m pytest
+
+  build-artifact:
+    needs: integration-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Create application zip
+        run: |
+          zip -r webapp.zip . -x "*.git*" "packer/*" ".github/*" "systemd/*" "venv/*"
+          
+      - name: Upload webapp artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: webapp-artifact
+          path: webapp.zip
+
+  build-images:
+    needs: build-artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download webapp artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: webapp-artifact
+          path: ./
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+          
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+          
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: "latest"
+          
+      - name: Initialize Packer
+        working-directory: ./packer
+        run: packer init .
+        
+      - name: Build Packer Images
+        working-directory: ./packer
+        run: |
+          packer build \
+            -var "postgres_password=${{ secrets.POSTGRES_PASSWORD }}" \
+            -var "gcp_project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            cloud.pkr.hcl
