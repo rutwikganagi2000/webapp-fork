@@ -34,9 +34,9 @@ variable "aws_instance_type" {
 }
 
 variable "aws_ami_users" {
-  type    = list(string)
+  type        = list(string)
   description = "List of AWS account IDs that can access the AMI"
-  default = []
+  default     = []
 }
 
 // GCP-specific variables
