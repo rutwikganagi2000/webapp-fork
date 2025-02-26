@@ -70,3 +70,24 @@ The project uses GitHub Actions for CI/CD pipeline:
 - Requires CI checks to pass before merging
 - Prevents direct pushes to main
 
+## GitHub Actions Workflows
+
+### Packer Validation Workflow
+- Runs on pull requests to the `main` branch.
+- Validates Packer template formatting and configuration.
+- Prevents merging if validation fails.
+
+### Packer Build Workflow
+- Triggered when pull requests are merged to `main`.
+- Runs integration tests with PostgreSQL.
+- Builds application artifact on the GitHub Actions runner.
+- Creates custom machine images for both AWS and GCP.
+- Configures the application with a non-login user (`csye6225`).
+- Sets up `systemd` service for automatic application startup.
+
+### Custom Image Features
+- Pre-installed application dependencies.
+- `systemd` service for automatic startup.
+- PostgreSQL database running locally.
+- Non-login user for security.
+
