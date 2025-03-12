@@ -13,8 +13,8 @@ packer {
 
 // Common variables
 variable "postgres_password" {
-  type    = string
-  default = "your_password_here"
+        type    = string
+        default = "your_password_here"
 }
 
 // AWS-specific variables
