@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.endpoints import healthcheck
+from app.api.endpoints import healthcheck, file
 from app.database import engine
 from app.models import Base
 
@@ -7,6 +7,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+app.include_router(file.router)
 app.include_router(healthcheck.router)
 
 if __name__ == "__main__":
