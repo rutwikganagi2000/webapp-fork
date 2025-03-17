@@ -7,29 +7,30 @@ from botocore.exceptions import ClientError
 import boto3
 import uuid
 from datetime import datetime
+import os
 
 router = APIRouter()
+
+# Load bucket name from environment variables
+bucket_name = os.getenv("S3_BUCKET_NAME", "my-default-bucket")
 
 # Initialize S3 client using IAM role
 s3 = boto3.client('s3')
 
 @router.post("/v1/file", status_code=status.HTTP_201_CREATED)
-async def create_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Upload a file to S3 and store metadata in the database.
     """
     try:
-        # Define S3 bucket name (replace with your actual bucket name)
-        bucket_name = "rutwik-bucket"
-
         # Generate a unique filename for S3
-        filename = f"{uuid.uuid4()}.jpg"  # Example: Generate a UUID-based filename
+        filename = f"{uuid.uuid4()}_{profilePic.filename}"  # Include the actual file name
 
         # Reset the file cursor to the beginning
-        await file.seek(0)
+        await profilePic.seek(0)
 
         # Upload file to S3 bucket
-        s3.upload_fileobj(file.file, bucket_name, filename)
+        s3.upload_fileobj(profilePic.file, bucket_name, filename)
 
         # Generate S3 URL for the file
         url = f"https://{bucket_name}.s3.amazonaws.com/{filename}"
@@ -114,7 +115,6 @@ async def delete_file(id: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
         # Delete file from S3 bucket
-        bucket_name = "rutwik-bucket"
         try:
             s3.delete_object(Bucket=bucket_name, Key=file_metadata.file_name)
         except ClientError as e:
