@@ -51,6 +51,12 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to upload file: {e}")
     except Exception as e:
+        # Delete the file from S3 if database operation fails
+        try:
+            s3.delete_object(Bucket=bucket_name, Key=filename)
+        except ClientError as e:
+            print(f"Failed to delete file from S3: {e}")
+
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to process request: {str(e)}")
 
