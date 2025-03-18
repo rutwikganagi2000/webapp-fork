@@ -49,10 +49,10 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
         }
     except ClientError as e:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to upload file: {e}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to upload file: {e}")
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to process request: {str(e)}")
 
 @router.get("/v1/file", status_code=status.HTTP_400_BAD_REQUEST)
 async def get_file_not_allowed():
@@ -100,8 +100,8 @@ async def get_file(id: str, db: Session = Depends(get_db)):
             "url": file_metadata.url,
             "upload_date": file_metadata.upload_date.strftime("%Y-%m-%d")
         }
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal Server Error")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
 @router.delete("/v1/file/{id}")
 async def delete_file(id: str, db: Session = Depends(get_db)):
@@ -118,7 +118,10 @@ async def delete_file(id: str, db: Session = Depends(get_db)):
         try:
             s3.delete_object(Bucket=bucket_name, Key=file_metadata.file_name)
         except ClientError as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete file from S3")
+            if e.response['Error']['Code'] == 'NoSuchKey':
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found in S3")
+            else:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete file from S3")
 
         # Remove metadata from database
         db.delete(file_metadata)
@@ -129,7 +132,7 @@ async def delete_file(id: str, db: Session = Depends(get_db)):
         raise e
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal Server Error")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to process request")
 
 @router.api_route("/v1/file/{id}", methods=["PUT", "PATCH", "POST", "HEAD", "OPTIONS"])
 async def method_not_allowed_for_id(id: str):
