@@ -105,16 +105,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
           
-      - name: Authenticate with gcloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          
       - name: Setup Packer
         uses: hashicorp/setup-packer@main
         with:
@@ -129,6 +119,5 @@ jobs:
         run: |
           packer build \
             -var "postgres_password=${{ secrets.POSTGRES_PASSWORD }}" \
-            -var "gcp_project_id=${{ secrets.GCP_PROJECT_ID }}" \
             -var "aws_ami_users=${{ secrets.AWS_AMI_USERS }}" \
             cloud.pkr.hcl

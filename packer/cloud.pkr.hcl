@@ -4,10 +4,6 @@ packer {
       version = ">= 1.2.0"
       source  = "github.com/hashicorp/amazon"
     }
-    googlecompute = {
-      version = ">= 1.0.0"
-      source  = "github.com/hashicorp/googlecompute"
-    }
   }
 }
 
@@ -39,21 +35,6 @@ variable "aws_ami_users" {
   default     = []
 }
 
-// GCP-specific variables
-variable "gcp_project_id" {
-  type    = string
-  default = "webapp-452005"
-}
-
-variable "gcp_zone" {
-  type    = string
-  default = "us-central1-a"
-}
-
-variable "gcp_source_image_family" {
-  type    = string
-  default = "ubuntu-2404-lts-amd64"
-}
 
 // AWS source definition
 source "amazon-ebs" "ubuntu" {
@@ -70,25 +51,13 @@ source "amazon-ebs" "ubuntu" {
   }
 }
 
-// GCP source definition
-source "googlecompute" "ubuntu" {
-  project_id          = var.gcp_project_id
-  zone                = var.gcp_zone
-  source_image_family = var.gcp_source_image_family
-  ssh_username        = "ubuntu"
-  image_name          = "csye6225-${formatdate("YYYY-MM-DD-hh-mm-ss", timestamp())}"
-  image_description   = "Ubuntu Image for CSYE 6225"
-
-  tags = ["csye6225"]
-}
 
 // Common build configuration
 build {
   name = "build-csye6225-image"
 
   sources = [
-    "source.amazon-ebs.ubuntu",
-    "source.googlecompute.ubuntu"
+    "source.amazon-ebs.ubuntu"
   ]
 
   provisioner "file" {

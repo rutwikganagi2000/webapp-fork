@@ -18,35 +18,6 @@ sudo apt upgrade -y
 echo "Installing dependencies..."
 sudo apt install -y curl ca-certificates python3 python3-pip python3-venv unzip
 
-# Add PostgreSQL repository and key
-echo "Adding PostgreSQL repository..."
-sudo install -d /usr/share/postgresql-common/pgdg
-sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
-sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-
-# Update and install PostgreSQL
-echo "Installing PostgreSQL..."
-sudo apt update
-sudo apt install -y postgresql postgresql-contrib
-
-# Start PostgreSQL service
-echo "Starting PostgreSQL service..."
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Configure PostgreSQL authentication
-echo "Configuring PostgreSQL..."
-sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';"
-
-# Create database and user
-echo "Creating database and user..."
-sudo -u postgres psql <<EOF
-CREATE DATABASE healthcheck_db;
-GRANT ALL PRIVILEGES ON DATABASE healthcheck_db TO postgres;
-CREATE DATABASE test_healthcheck_db;
-GRANT ALL PRIVILEGES ON DATABASE test_healthcheck_db TO postgres;
-EOF
-
 # Create application group
 echo "Creating application group..."
 sudo groupadd --system csye6225 || true
@@ -87,11 +58,6 @@ sudo cp /tmp/webapp.service /etc/systemd/system/webapp.service
 # Reload systemd and enable services
 echo "Enabling services..."
 sudo systemctl daemon-reload
-sudo systemctl enable postgresql
 sudo systemctl enable webapp
-
-# Verify PostgreSQL connection
-echo "Verifying PostgreSQL connection..."
-pg_isready -h localhost -p 5432
 
 echo "Setup completed successfully!"
