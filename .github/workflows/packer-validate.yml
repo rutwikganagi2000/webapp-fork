@@ -44,5 +44,5 @@ jobs:
         working-directory: ./packer
         run: |
           packer init .
-          packer validate -var 'postgres_password=dummy_password' -var 'gcp_project_id=dummy-project' cloud.pkr.hcl
+          packer validate -var 'postgres_password=dummy_password' cloud.pkr.hcl
         continue-on-error: false
