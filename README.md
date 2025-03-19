@@ -81,7 +81,7 @@ The project uses GitHub Actions for CI/CD pipeline:
 - Triggered when pull requests are merged to `main`.
 - Runs integration tests with PostgreSQL.
 - Builds application artifact on the GitHub Actions runner.
-- Creates custom machine images for both AWS and GCP.
+- Creates custom machine images for AWS.
 - Configures the application with a non-login user (`csye6225`).
 - Sets up `systemd` service for automatic application startup.
 
@@ -90,4 +90,16 @@ The project uses GitHub Actions for CI/CD pipeline:
 - `systemd` service for automatic startup.
 - PostgreSQL database running locally.
 - Non-login user for security.
+
+## File Upload API (`file.py`)
+
+## Overview
+
+The `file.py` module provides endpoints for uploading, getting and deleting files in an S3 bucket. It leverages FastAPI for API handling, the AWS SDK (Boto3) for S3 interactions, and SQLAlchemy for managing metadata storage in a PostgreSQL database.
+
+## Functionality
+
+- **File Upload:** Uploads files to an S3 bucket and stores metadata (filename, URL, upload timestamp) in the database.
+- **File Get:** Returns the path to the file in the S3 bucket. 
+- **File Deletion:** Deletes files from S3 and removes the corresponding metadata from the database.
 
