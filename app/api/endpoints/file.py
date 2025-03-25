@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
+from fastapi import Depends
 from app.database import get_db
 from app.models import FileMetadata
 from botocore.exceptions import ClientError
@@ -8,8 +9,9 @@ import boto3
 import uuid
 from datetime import datetime
 import os
-
-router = APIRouter()
+import logging
+import time
+from statsd import StatsClient
 
 # Load bucket name from environment variables
 bucket_name = os.getenv("S3_BUCKET_NAME", "my-default-bucket")
@@ -17,12 +19,22 @@ bucket_name = os.getenv("S3_BUCKET_NAME", "my-default-bucket")
 # Initialize S3 client using IAM role
 s3 = boto3.client('s3')
 
+# Initialize StatsD client
+statsd_client = StatsClient(host='localhost', port=8125)
+
+router = APIRouter()
+
+# Set up logging
+logging.basicConfig(filename='/opt/csye6225/webapp/logs/app.log', level=logging.INFO)
+
 @router.post("/v1/file", status_code=status.HTTP_201_CREATED)
-async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(get_db)):
+async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(get_db), request: Request = Request):
     """
     Upload a file to S3 and store metadata in the database.
     """
     try:
+        start_time = time.time()
+        
         # Generate a unique filename for S3
         filename = f"{uuid.uuid4()}_{profilePic.filename}"  # Include the actual file name
 
@@ -41,6 +53,16 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
         db.commit()
         db.refresh(new_file)
 
+        end_time = time.time()
+        processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
+
+        # Log the request
+        logging.info(f"File uploaded successfully. Request ID: {request.client.host}")
+
+        # Send metrics to StatsD
+        statsd_client.incr('file.upload.count')
+        statsd_client.timing('file.upload.time', processing_time)
+
         return {
             "file_name": new_file.file_name,
             "id": str(new_file.id),
@@ -49,15 +71,17 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
         }
     except ClientError as e:
         db.rollback()
+        logging.error(f"Failed to upload file: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to upload file: {e}")
     except Exception as e:
         # Delete the file from S3 if database operation fails
         try:
             s3.delete_object(Bucket=bucket_name, Key=filename)
         except ClientError as e:
-            print(f"Failed to delete file from S3: {e}")
+            logging.error(f"Failed to delete file from S3: {e}")
 
         db.rollback()
+        logging.error(f"Failed to process request: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to process request: {str(e)}")
 
 @router.get("/v1/file", status_code=status.HTTP_400_BAD_REQUEST)
@@ -91,14 +115,27 @@ async def method_not_allowed():
     )
 
 @router.get("/v1/file/{id}", status_code=status.HTTP_200_OK)
-async def get_file(id: str, db: Session = Depends(get_db)):
+async def get_file(id: str, db: Session = Depends(get_db), request: Request = Request):
     """
     Retrieve a file's metadata by ID.
     """
     try:
+        start_time = time.time()
+        
         file_metadata = db.query(FileMetadata).filter(FileMetadata.id == id).first()
         if not file_metadata:
+            logging.error(f"File not found. Request ID: {request.client.host}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+        end_time = time.time()
+        processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
+
+        # Log the request
+        logging.info(f"File metadata retrieved successfully. Request ID: {request.client.host}")
+
+        # Send metrics to StatsD
+        statsd_client.incr('file.get.count')
+        statsd_client.timing('file.get.time', processing_time)
 
         return {
             "file_name": file_metadata.file_name,
@@ -107,17 +144,21 @@ async def get_file(id: str, db: Session = Depends(get_db)):
             "upload_date": file_metadata.upload_date.strftime("%Y-%m-%d")
         }
     except Exception as e:
+        logging.error(f"Failed to retrieve file metadata: {e}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
 @router.delete("/v1/file/{id}")
-async def delete_file(id: str, db: Session = Depends(get_db)):
+async def delete_file(id: str, db: Session = Depends(get_db), request: Request = Request):
     """
     Delete a file from S3 and remove its metadata from the database.
     """
     try:
+        start_time = time.time()
+        
         # Find file metadata in database
         file_metadata = db.query(FileMetadata).filter(FileMetadata.id == id).first()
         if not file_metadata:
+            logging.error(f"File not found. Request ID: {request.client.host}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
         # Delete file from S3 bucket
@@ -125,19 +166,32 @@ async def delete_file(id: str, db: Session = Depends(get_db)):
             s3.delete_object(Bucket=bucket_name, Key=file_metadata.file_name)
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchKey':
+                logging.error(f"File not found in S3. Request ID: {request.client.host}")
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found in S3")
             else:
+                logging.error(f"Failed to delete file from S3: {e}")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete file from S3")
 
         # Remove metadata from database
         db.delete(file_metadata)
         db.commit()
 
+        end_time = time.time()
+        processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
+
+        # Log the request
+        logging.info(f"File deleted successfully. Request ID: {request.client.host}")
+
+        # Send metrics to StatsD
+        statsd_client.incr('file.delete.count')
+        statsd_client.timing('file.delete.time', processing_time)
+
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except HTTPException as e:
         raise e
     except Exception as e:
         db.rollback()
+        logging.error(f"Failed to process request: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to process request")
 
 @router.api_route("/v1/file/{id}", methods=["PUT", "PATCH", "POST", "HEAD", "OPTIONS"])

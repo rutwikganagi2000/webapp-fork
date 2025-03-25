@@ -18,6 +18,44 @@ sudo apt upgrade -y
 echo "Installing dependencies..."
 sudo apt install -y curl ca-certificates python3 python3-pip python3-venv unzip
 
+# Configure CloudWatch Agent
+echo "Configuring CloudWatch Agent..."
+sudo mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << EOF
+{
+  "agent": {
+    "metrics_collection_interval": 10,
+    "logfile": "/var/log/amazon-cloudwatch-agent.log"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/opt/csye6225/webapp/logs/app.log",
+            "log_group_name": "csye6225-webapp-logs",
+            "log_stream_name": "webapp-log-stream"
+          }
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "metrics_collected": {
+      "statsd": {
+        "service_address": ":8125",
+        "metrics_collection_interval": 15,
+        "metrics_aggregation_interval": 300
+      }
+    }
+  }
+}
+EOF
+
+# Start CloudWatch Agent
+echo "Starting CloudWatch Agent..."
+sudo systemctl start amazon-cloudwatch-agent
+
 # Create application group
 echo "Creating application group..."
 sudo groupadd --system csye6225 || true
