@@ -25,16 +25,10 @@ statsd_client = StatsClient(host='localhost', port=8125)
 
 router = APIRouter()
 
-# Create log directory if it doesn't exist
-log_directory = './logs'
-if not os.path.exists(log_directory):
-    os.makedirs(log_directory, exist_ok=True)
-
-# Set up logging with timestamp
 logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    filename=os.path.join(log_directory, 'app.log'), level=logging.INFO
+    filename='/var/log/webapp/csye6225.log', level=logging.INFO
 )
 
 @router.post("/v1/file", status_code=status.HTTP_201_CREATED)
