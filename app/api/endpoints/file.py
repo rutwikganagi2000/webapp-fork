@@ -12,6 +12,7 @@ import os
 import logging
 import time
 from statsd import StatsClient
+import traceback
 
 # Load bucket name from environment variables
 bucket_name = os.getenv("S3_BUCKET_NAME", "my-default-bucket")
@@ -29,8 +30,12 @@ log_directory = './logs'
 if not os.path.exists(log_directory):
     os.makedirs(log_directory, exist_ok=True)
 
-# Set up logging
-logging.basicConfig(filename=os.path.join(log_directory, 'app.log'), level=logging.INFO)
+# Set up logging with timestamp
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    filename=os.path.join(log_directory, 'app.log'), level=logging.INFO
+)
 
 @router.post("/v1/file", status_code=status.HTTP_201_CREATED)
 async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(get_db), request: Request = Request):
@@ -69,8 +74,8 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
 
-        # Log the request
-        logging.info(f"File uploaded successfully. Request ID: {request.client.host}")
+        # Log the request with filename
+        logging.info(f"File uploaded successfully: {filename}. Request ID: {request.client.host}")
 
         # Send metrics to StatsD
         statsd_client.incr('file.upload.count')
@@ -84,7 +89,8 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
         }
     except ClientError as e:
         db.rollback()
-        logging.error(f"Failed to upload file: {e}")
+        error_message = f"Failed to upload file: {e}\n{traceback.format_exc()}"
+        logging.error(error_message)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to upload file: {e}")
     except Exception as e:
         # Delete the file from S3 if database operation fails
@@ -94,12 +100,14 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
             logging.error(f"Failed to delete file from S3: {e}")
 
         db.rollback()
-        logging.error(f"Failed to process request: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to process request: {str(e)}")
+        error_message = f"Failed to process request: {e}\n{traceback.format_exc()}"
+        logging.error(error_message)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to process request: {e}")
 
 @router.get("/v1/file", status_code=status.HTTP_400_BAD_REQUEST)
-async def get_file_not_allowed():
+async def get_file_not_allowed(request: Request):
     """Handle GET request with 400 Bad Request"""
+    logging.info(f"GET request not allowed for /v1/file. Request ID: {request.client.host}")
     return Response(
         status_code=status.HTTP_400_BAD_REQUEST,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate",
@@ -108,8 +116,9 @@ async def get_file_not_allowed():
     )
 
 @router.delete("/v1/file", status_code=status.HTTP_400_BAD_REQUEST)
-async def delete_file_not_allowed():
+async def delete_file_not_allowed(request: Request):
     """Handle DELETE request with 400 Bad Request"""
+    logging.info(f"DELETE request not allowed for /v1/file. Request ID: {request.client.host}")
     return Response(
         status_code=status.HTTP_400_BAD_REQUEST,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate",
@@ -118,8 +127,9 @@ async def delete_file_not_allowed():
     )
 
 @router.api_route("/v1/file", methods=["PUT", "PATCH", "OPTIONS", "HEAD"])
-async def method_not_allowed():
+async def method_not_allowed(request: Request):
     """Handle unsupported HTTP methods"""
+    logging.info(f"Unsupported HTTP method attempted for /v1/file. Request ID: {request.client.host}")
     return Response(
         status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate",
@@ -143,14 +153,14 @@ async def get_file(id: str, db: Session = Depends(get_db), request: Request = Re
         statsd_client.timing('db.query.time', db_processing_time)
 
         if not file_metadata:
-            logging.error(f"File not found. Request ID: {request.client.host}")
+            logging.error(f"File not found with ID: {id}. Request ID: {request.client.host}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
 
-        # Log the request
-        logging.info(f"File metadata retrieved successfully. Request ID: {request.client.host}")
+        # Log the request with filename
+        logging.info(f"File metadata retrieved successfully: {file_metadata.file_name}. Request ID: {request.client.host}")
 
         # Send metrics to StatsD
         statsd_client.incr('file.get.count')
@@ -163,7 +173,8 @@ async def get_file(id: str, db: Session = Depends(get_db), request: Request = Re
             "upload_date": file_metadata.upload_date.strftime("%Y-%m-%d")
         }
     except Exception as e:
-        logging.error(f"Failed to retrieve file metadata: {e}")
+        error_message = f"Failed to retrieve file metadata: {e}\n{traceback.format_exc()}"
+        logging.error(error_message)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
 @router.delete("/v1/file/{id}")
@@ -182,7 +193,7 @@ async def delete_file(id: str, db: Session = Depends(get_db), request: Request =
         statsd_client.timing('db.query.time', db_processing_time)
 
         if not file_metadata:
-            logging.error(f"File not found. Request ID: {request.client.host}")
+            logging.error(f"File not found with ID: {id}. Request ID: {request.client.host}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
         # Delete file from S3 bucket
@@ -191,10 +202,11 @@ async def delete_file(id: str, db: Session = Depends(get_db), request: Request =
             s3.delete_object(Bucket=bucket_name, Key=file_metadata.file_name)
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchKey':
-                logging.error(f"File not found in S3. Request ID: {request.client.host}")
+                logging.error(f"File not found in S3: {file_metadata.file_name}. Request ID: {request.client.host}")
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found in S3")
             else:
-                logging.error(f"Failed to delete file from S3: {e}")
+                error_message = f"Failed to delete file from S3: {e}\n{traceback.format_exc()}"
+                logging.error(error_message)
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete file from S3")
         s3_end_time = time.time()
         s3_processing_time = (s3_end_time - s3_start_time) * 1000  # Convert to milliseconds
@@ -211,8 +223,8 @@ async def delete_file(id: str, db: Session = Depends(get_db), request: Request =
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
 
-        # Log the request
-        logging.info(f"File deleted successfully. Request ID: {request.client.host}")
+        # Log the request with filename
+        logging.info(f"File deleted successfully: {file_metadata.file_name}. Request ID: {request.client.host}")
 
         # Send metrics to StatsD
         statsd_client.incr('file.delete.count')
@@ -223,12 +235,14 @@ async def delete_file(id: str, db: Session = Depends(get_db), request: Request =
         raise e
     except Exception as e:
         db.rollback()
-        logging.error(f"Failed to process request: {e}")
+        error_message = f"Failed to process request: {e}\n{traceback.format_exc()}"
+        logging.error(error_message)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to process request")
 
 @router.api_route("/v1/file/{id}", methods=["PUT", "PATCH", "POST", "HEAD", "OPTIONS"])
-async def method_not_allowed_for_id(id: str):
+async def method_not_allowed_for_id(id: str, request: Request):
     """Handle unsupported HTTP methods for /v1/file/{id}"""
+    logging.info(f"Unsupported HTTP method attempted for /v1/file/{id}. Request ID: {request.client.host}")
     return Response(
         status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate",
