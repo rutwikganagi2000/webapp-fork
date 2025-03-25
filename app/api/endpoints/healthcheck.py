@@ -7,14 +7,25 @@ from app.models import HealthCheck
 import logging
 import time
 from statsd import StatsClient
+import os
+import traceback
 
 # Initialize StatsD client
 statsd_client = StatsClient(host='localhost', port=8125)
 
 router = APIRouter()
 
-# Set up logging
-logging.basicConfig(filename='/opt/csye6225/webapp/logs/app.log', level=logging.INFO)
+# Create log directory if it doesn't exist
+log_directory = './logs'
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory, exist_ok=True)
+
+# Set up logging with UTC timestamp
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    filename=os.path.join(log_directory, 'app.log'), level=logging.INFO
+)
 
 @router.get("/healthz")
 async def health_checks(request: Request, db: Session = Depends(get_db)):
@@ -34,9 +45,14 @@ async def health_checks(request: Request, db: Session = Depends(get_db)):
                         "X-Content-Type-Options": "nosniff"}
             )
 
+        # Measure database query time
+        db_start_time = time.time()
         new_check = HealthCheck()
         db.add(new_check)
         db.commit()
+        db_end_time = time.time()
+        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.query.time', db_processing_time)
 
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
@@ -54,9 +70,10 @@ async def health_checks(request: Request, db: Session = Depends(get_db)):
                     "Pragma": "no-cache",
                     "X-Content-Type-Options": "nosniff"}
         )
-    except Exception:
+    except Exception as e:
         db.rollback()
-        logging.error(f"Failed to perform health check. Request ID: {request.client.host}")
+        error_message = f"Failed to perform health check. Request ID: {request.client.host}. Error: {e}\n{traceback.format_exc()}"
+        logging.error(error_message)
         return Response(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             headers={"Cache-Control": "no-cache, no-store, must-revalidate",
@@ -65,8 +82,9 @@ async def health_checks(request: Request, db: Session = Depends(get_db)):
         )
 
 @router.api_route("/healthz", methods=["POST", "PUT", "DELETE", "PATCH"])
-async def method_not_allowed():
+async def method_not_allowed(request: Request):
     """Handle unsupported HTTP methods"""
+    logging.info(f"Unsupported HTTP method attempted for /healthz. Request ID: {request.client.host}")
     return Response(
         status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate",
@@ -75,8 +93,9 @@ async def method_not_allowed():
     )
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def catch_all(path: str):
+async def catch_all(path: str, request: Request):
     """Handle all undefined routes"""
+    logging.info(f"Undefined route accessed: {path}. Request ID: {request.client.host}")
     return Response(
         status_code=status.HTTP_404_NOT_FOUND,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate",

@@ -24,8 +24,13 @@ statsd_client = StatsClient(host='localhost', port=8125)
 
 router = APIRouter()
 
+# Create log directory if it doesn't exist
+log_directory = './logs'
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory, exist_ok=True)
+
 # Set up logging
-logging.basicConfig(filename='/opt/csye6225/webapp/logs/app.log', level=logging.INFO)
+logging.basicConfig(filename=os.path.join(log_directory, 'app.log'), level=logging.INFO)
 
 @router.post("/v1/file", status_code=status.HTTP_201_CREATED)
 async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(get_db), request: Request = Request):
@@ -41,17 +46,25 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
         # Reset the file cursor to the beginning
         await profilePic.seek(0)
 
-        # Upload file to S3 bucket
+        # Measure S3 upload time
+        s3_start_time = time.time()
         s3.upload_fileobj(profilePic.file, bucket_name, filename)
+        s3_end_time = time.time()
+        s3_processing_time = (s3_end_time - s3_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('s3.upload.time', s3_processing_time)
 
         # Generate S3 URL for the file
         url = f"https://{bucket_name}.s3.amazonaws.com/{filename}"
 
-        # Store metadata in the database
+        # Measure database query time
+        db_start_time = time.time()
         new_file = FileMetadata(file_name=filename, url=url, upload_date=datetime.utcnow())
         db.add(new_file)
         db.commit()
         db.refresh(new_file)
+        db_end_time = time.time()
+        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.query.time', db_processing_time)
 
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
@@ -122,7 +135,13 @@ async def get_file(id: str, db: Session = Depends(get_db), request: Request = Re
     try:
         start_time = time.time()
         
+        # Measure database query time
+        db_start_time = time.time()
         file_metadata = db.query(FileMetadata).filter(FileMetadata.id == id).first()
+        db_end_time = time.time()
+        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.query.time', db_processing_time)
+
         if not file_metadata:
             logging.error(f"File not found. Request ID: {request.client.host}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
@@ -156,12 +175,18 @@ async def delete_file(id: str, db: Session = Depends(get_db), request: Request =
         start_time = time.time()
         
         # Find file metadata in database
+        db_start_time = time.time()
         file_metadata = db.query(FileMetadata).filter(FileMetadata.id == id).first()
+        db_end_time = time.time()
+        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.query.time', db_processing_time)
+
         if not file_metadata:
             logging.error(f"File not found. Request ID: {request.client.host}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
         # Delete file from S3 bucket
+        s3_start_time = time.time()
         try:
             s3.delete_object(Bucket=bucket_name, Key=file_metadata.file_name)
         except ClientError as e:
@@ -171,10 +196,17 @@ async def delete_file(id: str, db: Session = Depends(get_db), request: Request =
             else:
                 logging.error(f"Failed to delete file from S3: {e}")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete file from S3")
+        s3_end_time = time.time()
+        s3_processing_time = (s3_end_time - s3_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('s3.delete.time', s3_processing_time)
 
         # Remove metadata from database
+        db_start_time = time.time()
         db.delete(file_metadata)
         db.commit()
+        db_end_time = time.time()
+        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.query.time', db_processing_time)
 
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
