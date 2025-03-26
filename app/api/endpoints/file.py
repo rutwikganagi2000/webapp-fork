@@ -70,8 +70,8 @@ async def create_file(profilePic: UploadFile = File(...), db: Session = Depends(
         db.commit()
         db.refresh(new_file)
         db_end_time = time.time()
-        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
-        statsd_client.timing('db.query.time', db_processing_time)
+        db_insert_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.insert.time', db_insert_time)
 
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
@@ -151,8 +151,8 @@ async def get_file(id: str, db: Session = Depends(get_db), request: Request = Re
         db_start_time = time.time()
         file_metadata = db.query(FileMetadata).filter(FileMetadata.id == id).first()
         db_end_time = time.time()
-        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
-        statsd_client.timing('db.query.time', db_processing_time)
+        db_select_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.select.time', db_select_time)
 
         if not file_metadata:
             logging.error(f"File not found with ID: {id}. Request ID: {request.client.host}")
@@ -191,8 +191,8 @@ async def delete_file(id: str, db: Session = Depends(get_db), request: Request =
         db_start_time = time.time()
         file_metadata = db.query(FileMetadata).filter(FileMetadata.id == id).first()
         db_end_time = time.time()
-        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
-        statsd_client.timing('db.query.time', db_processing_time)
+        db_find_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.find.time', db_find_time)
 
         if not file_metadata:
             logging.error(f"File not found with ID: {id}. Request ID: {request.client.host}")
@@ -219,8 +219,8 @@ async def delete_file(id: str, db: Session = Depends(get_db), request: Request =
         db.delete(file_metadata)
         db.commit()
         db_end_time = time.time()
-        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
-        statsd_client.timing('db.query.time', db_processing_time)
+        db_delete_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.delete.time', db_delete_time)
 
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds

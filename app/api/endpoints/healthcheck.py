@@ -53,8 +53,8 @@ async def health_checks(request: Request, db: Session = Depends(get_db)):
         db.add(new_check)
         db.commit()
         db_end_time = time.time()
-        db_processing_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
-        statsd_client.timing('db.query.time', db_processing_time)
+        db_healthcheck_time = (db_end_time - db_start_time) * 1000  # Convert to milliseconds
+        statsd_client.timing('db.healthcheck.time', db_healthcheck_time)
 
         end_time = time.time()
         processing_time = (end_time - start_time) * 1000  # Convert to milliseconds
