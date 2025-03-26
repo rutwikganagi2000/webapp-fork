@@ -27,6 +27,7 @@ sudo rm /tmp/amazon-cloudwatch-agent.deb
 # Configure CloudWatch Agent
 echo "Configuring CloudWatch Agent..."
 sudo mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
+sudo chown ubuntu:ubuntu /opt/aws/amazon-cloudwatch-agent/etc
 cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << EOF
 {
   "agent": {
