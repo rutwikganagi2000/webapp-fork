@@ -1,12 +1,6 @@
 #!/bin/bash
 set -e
 
-# Create log directory for application
-echo "Creating log directory for application..."
-sudo mkdir -p /var/log/webapp
-sudo chown csye6225:csye6225 /var/log/webapp
-sudo chmod -R 755 /var/log/webapp
-
 # Create .env file
 echo "Creating .env file..."
 cat > /tmp/.env << EOF
@@ -23,6 +17,12 @@ sudo apt upgrade -y
 # Install dependencies
 echo "Installing dependencies..."
 sudo apt install -y curl ca-certificates python3 python3-pip python3-venv unzip
+
+# Install amazon-cloudwatch-agent
+echo "Installing amazon-cloudwatch-agent..."
+sudo curl -s https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb -o /tmp/amazon-cloudwatch-agent.deb
+sudo dpkg -i -E /tmp/amazon-cloudwatch-agent.deb
+sudo rm /tmp/amazon-cloudwatch-agent.deb
 
 # Configure CloudWatch Agent
 echo "Configuring CloudWatch Agent..."
@@ -69,6 +69,12 @@ sudo groupadd --system csye6225 || true
 # Create application user with nologin shell
 echo "Creating application user..."
 sudo useradd --system --gid csye6225 --shell /usr/sbin/nologin csye6225 || true
+
+# Create log directory for application
+echo "Creating log directory for application..."
+sudo mkdir -p /var/log/webapp
+sudo chown csye6225:csye6225 /var/log/webapp
+sudo chmod -R 755 /var/log/webapp
 
 # Create application directory
 echo "Creating application directory..."
