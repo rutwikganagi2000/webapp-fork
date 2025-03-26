@@ -73,15 +73,6 @@ build {
   }
 
   provisioner "shell" {
-    inline = [
-      "sudo apt update",
-      "sudo apt install -y amazon-cloudwatch-agent statsd",
-      "sudo systemctl enable amazon-cloudwatch-agent"
-    ]
-    timeout = "10m"
-  }
-
-  provisioner "shell" {
     script  = "setup.sh"
     timeout = "10m"
     environment_vars = [
