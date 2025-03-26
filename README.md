@@ -103,3 +103,20 @@ The `file.py` module provides endpoints for uploading, getting and deleting file
 - **File Get:** Returns the path to the file in the S3 bucket. 
 - **File Deletion:** Deletes files from S3 and removes the corresponding metadata from the database.
 
+## CloudWatch Integration
+
+### Overview
+The application integrates with AWS CloudWatch for logging and metrics collection.
+
+### Logging
+- Application logs are sent to CloudWatch using the **CloudWatch Agent**.
+- Logs are stored in a log group named **csye6225-webapp-logs**.
+
+### Metrics
+- Custom metrics are collected using **StatsD** and sent to CloudWatch.
+- Metrics include:
+  - **API call counts**
+  - **API call processing times**
+  - **Database query times**
+  - **S3 operation times**
+
