@@ -4,7 +4,7 @@ set -e
 # Create log directory for application
 echo "Creating log directory for application..."
 sudo mkdir -p /var/log/webapp
-sudo chown ubuntu:ubuntu /var/log/webapp
+sudo chown csye6225:csye6225 /var/log/webapp
 sudo chmod -R 755 /var/log/webapp
 
 # Create .env file
@@ -38,7 +38,7 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << EOF
       "files": {
         "collect_list": [
           {
-            "file_path": "/var/log/webapp/csye6225.log",
+            "file_path": "/var/log/webapp/webapp.log",
             "log_group_name": "csye6225-webapp-logs",
             "log_stream_name": "webapp-log-stream"
           }

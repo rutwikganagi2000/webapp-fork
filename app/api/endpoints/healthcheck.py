@@ -15,10 +15,18 @@ statsd_client = StatsClient(host='localhost', port=8125)
 
 router = APIRouter()
 
+# Determine log file path based on environment
+hostname = os.uname().nodename
+if os.getenv('GITHUB_ACTIONS') == 'true' or hostname.endswith('.local'):
+    log_file_path = 'webapp_local.log'
+else:
+    log_file_path = '/var/log/webapp/webapp.log'
+
+# Set up logging
 logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    filename='/var/log/webapp/csye6225.log', level=logging.INFO
+    filename=log_file_path, level=logging.INFO
 )
 
 @router.get("/healthz")
