@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Create log directory for application
+echo "Creating log directory for application..."
+sudo mkdir -p /var/log/webapp
+sudo chown csye6225:csye6225 /var/log/webapp
+sudo chmod -R 755 /var/log/webapp
+
 # Create .env file
 echo "Creating .env file..."
 cat > /tmp/.env << EOF
@@ -17,6 +23,44 @@ sudo apt upgrade -y
 # Install dependencies
 echo "Installing dependencies..."
 sudo apt install -y curl ca-certificates python3 python3-pip python3-venv unzip
+
+# Configure CloudWatch Agent
+echo "Configuring CloudWatch Agent..."
+sudo mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << EOF
+{
+  "agent": {
+    "metrics_collection_interval": 10,
+    "logfile": "/var/log/amazon-cloudwatch-agent.log"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/webapp/webapp.log",
+            "log_group_name": "csye6225-webapp-logs",
+            "log_stream_name": "webapp-log-stream"
+          }
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "metrics_collected": {
+      "statsd": {
+        "service_address": ":8125",
+        "metrics_collection_interval": 15,
+        "metrics_aggregation_interval": 300
+      }
+    }
+  }
+}
+EOF
+
+# Start CloudWatch Agent
+echo "Starting CloudWatch Agent..."
+sudo systemctl start amazon-cloudwatch-agent
 
 # Create application group
 echo "Creating application group..."
