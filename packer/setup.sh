@@ -27,6 +27,7 @@ sudo rm /tmp/amazon-cloudwatch-agent.deb
 # Configure CloudWatch Agent
 echo "Configuring CloudWatch Agent..."
 sudo mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
+sudo chown ubuntu:ubuntu /opt/aws/amazon-cloudwatch-agent/etc
 cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << EOF
 {
   "agent": {
@@ -61,6 +62,7 @@ EOF
 # Start CloudWatch Agent
 echo "Starting CloudWatch Agent..."
 sudo systemctl start amazon-cloudwatch-agent
+sudo systemctl enable amazon-cloudwatch-agent
 
 # Create application group
 echo "Creating application group..."
