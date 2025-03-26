@@ -62,6 +62,7 @@ EOF
 # Start CloudWatch Agent
 echo "Starting CloudWatch Agent..."
 sudo systemctl start amazon-cloudwatch-agent
+sudo systemctl enable amazon-cloudwatch-agent
 
 # Create application group
 echo "Creating application group..."
