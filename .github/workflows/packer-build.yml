@@ -88,6 +88,8 @@ jobs:
   build-images:
     needs: build-artifact
     runs-on: ubuntu-latest
+    outputs:
+      ami_id: ${{ steps.set-ami-id.outputs.ami_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -122,6 +124,35 @@ jobs:
             -var "aws_ami_users=${{ secrets.AWS_AMI_USERS }}" \
             cloud.pkr.hcl
         id: packer-build
+      
+      - name: Display manifest contents
+        run: ls -la && ls -la packer/ || echo "packer directory not found"
+        
+      - name: Extract AMI ID
+        id: set-ami-id
+        run: |
+          # Verify manifest file exists
+          if [ -f "packer/manifest.json" ]; then
+            echo "Manifest file found"
+            cat packer/manifest.json
+            
+            # Extract AMI ID
+            AMI_ID=$(jq -r '.builds[-1].artifact_id' packer/manifest.json | cut -d':' -f2)
+            echo "Extracted AMI ID: $AMI_ID"
+            
+            # Validate AMI ID format
+            if [[ $AMI_ID =~ ^ami-[a-z0-9]+$ ]]; then
+              echo "Valid AMI ID format: $AMI_ID"
+              echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
+            else
+              echo "Invalid AMI ID format: $AMI_ID"
+              exit 1
+            fi
+          else
+            echo "Manifest file not found!"
+            find . -name "manifest.json"
+            exit 1
+          fi
 
   deploy-demo:
     needs: build-images
@@ -133,17 +164,21 @@ jobs:
           aws-access-key-id: ${{ secrets.DEMO_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DEMO_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
-      - name: Get new AMI ID
-        run: |
-          echo "AMI_ID=$(jq -r '.builds[-1].artifact_id' packer/manifest.json | cut -d':' -f2)" >> $GITHUB_ENV
-
+          
       - name: Create new Launch Template version
         run: |
+          echo "Using AMI ID: ${{ needs.build-images.outputs.ami_id }}"
+          
+          # Verify AMI ID is not empty
+          if [ -z "${{ needs.build-images.outputs.ami_id }}" ]; then
+            echo "ERROR: AMI ID is empty"
+            exit 1
+          fi
+          
           aws ec2 create-launch-template-version \
             --launch-template-name csye6225_asg \
             --source-version '$Latest' \
-            --launch-template-data '{"ImageId":"${{ env.AMI_ID }}"}'
+            --launch-template-data "{\"ImageId\":\"${{ needs.build-images.outputs.ami_id }}\"}"
 
       - name: Start instance refresh
         run: |
