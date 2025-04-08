@@ -83,6 +83,30 @@ async def health_checks(request: Request, db: Session = Depends(get_db)):
                     "X-Content-Type-Options": "nosniff"}
         )
 
+@router.get("/cicd")
+async def cicd_check(request: Request):
+    """
+    CI/CD Verification Endpoint
+    """
+    try:
+        # Simple check that doesn't require database access
+        logging.info(f"CI/CD check successful. Request ID: {request.client.host}")
+        return {
+            "status": "ok",
+            "message": "CI/CD endpoint operational",
+            "version": "1.0.0"
+        }
+    except Exception as e:
+        error_message = f"CI/CD check failed. Request ID: {request.client.host}. Error: {e}\n{traceback.format_exc()}"
+        logging.error(error_message)
+        return Response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "X-Content-Type-Options": "nosniff"},
+            content="Service Unavailable"
+        )
+
 @router.api_route("/healthz", methods=["POST", "PUT", "DELETE", "PATCH"])
 async def method_not_allowed(request: Request):
     """Handle unsupported HTTP methods"""
