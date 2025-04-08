@@ -121,3 +121,56 @@ jobs:
             -var "postgres_password=${{ secrets.POSTGRES_PASSWORD }}" \
             -var "aws_ami_users=${{ secrets.AWS_AMI_USERS }}" \
             cloud.pkr.hcl
+        id: packer-build
+
+  deploy-demo:
+    needs: build-images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (DEMO)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.DEMO_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DEMO_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Get new AMI ID
+        run: |
+          echo "AMI_ID=$(jq -r '.builds[-1].artifact_id' packer/manifest.json | cut -d':' -f2)" >> $GITHUB_ENV
+
+      - name: Create new Launch Template version
+        run: |
+          aws ec2 create-launch-template-version \
+            --launch-template-name csye6225_asg \
+            --source-version '$Latest' \
+            --launch-template-data '{"ImageId":"${{ env.AMI_ID }}"}'
+
+      - name: Start instance refresh
+        run: |
+          INSTANCE_REFRESH_ID=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name web-app-asg \
+            --preferences '{"InstanceWarmup": 300, "MinHealthyPercentage": 90}' \
+            --query 'InstanceRefreshId' \
+            --output text)
+          
+          echo "INSTANCE_REFRESH_ID=$INSTANCE_REFRESH_ID" >> $GITHUB_ENV
+
+      - name: Wait for instance refresh
+        run: |
+          while true; do
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name web-app-asg \
+              --instance-refresh-ids ${{ env.INSTANCE_REFRESH_ID }} \
+              --query 'InstanceRefreshes[0].Status' \
+              --output text)
+            
+            if [ "$STATUS" = "Successful" ]; then
+              echo "Instance refresh completed successfully"
+              break
+            elif [ "$STATUS" = "Failed" ]; then
+              echo "Instance refresh failed"
+              exit 1
+            fi
+            
+            sleep 30
+          done
