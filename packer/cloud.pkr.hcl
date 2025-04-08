@@ -82,6 +82,12 @@ build {
     ]
   }
 
+  # manifest post-processor
+  post-processor "manifest" {
+    output     = "manifest.json"
+    strip_path = true
+  }
+
   error-cleanup-provisioner "shell" {
     inline = ["echo 'Cleaning up after error'"]
   }

@@ -126,31 +126,18 @@ jobs:
         id: packer-build
       
       - name: Display manifest contents
-        run: ls -la && ls -la packer/ || echo "packer directory not found"
+        working-directory: ./packer
+        run: ls -la manifest.json || echo "Manifest file missing"
         
       - name: Extract AMI ID
         id: set-ami-id
+        working-directory: ./packer
         run: |
-          # Verify manifest file exists
-          if [ -f "packer/manifest.json" ]; then
-            echo "Manifest file found"
-            cat packer/manifest.json
-            
-            # Extract AMI ID
-            AMI_ID=$(jq -r '.builds[-1].artifact_id' packer/manifest.json | cut -d':' -f2)
-            echo "Extracted AMI ID: $AMI_ID"
-            
-            # Validate AMI ID format
-            if [[ $AMI_ID =~ ^ami-[a-z0-9]+$ ]]; then
-              echo "Valid AMI ID format: $AMI_ID"
-              echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
-            else
-              echo "Invalid AMI ID format: $AMI_ID"
-              exit 1
-            fi
+          if [ -f "manifest.json" ]; then
+            AMI_ID=$(jq -r '.builds[-1].artifact_id' manifest.json | cut -d':' -f2)
+            echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
           else
-            echo "Manifest file not found!"
-            find . -name "manifest.json"
+            echo "::error::Manifest file not found!"
             exit 1
           fi
 
@@ -167,14 +154,6 @@ jobs:
           
       - name: Create new Launch Template version
         run: |
-          echo "Using AMI ID: ${{ needs.build-images.outputs.ami_id }}"
-          
-          # Verify AMI ID is not empty
-          if [ -z "${{ needs.build-images.outputs.ami_id }}" ]; then
-            echo "ERROR: AMI ID is empty"
-            exit 1
-          fi
-          
           aws ec2 create-launch-template-version \
             --launch-template-name csye6225_asg \
             --source-version '$Latest' \
@@ -187,7 +166,6 @@ jobs:
             --preferences '{"InstanceWarmup": 300, "MinHealthyPercentage": 90}' \
             --query 'InstanceRefreshId' \
             --output text)
-          
           echo "INSTANCE_REFRESH_ID=$INSTANCE_REFRESH_ID" >> $GITHUB_ENV
 
       - name: Wait for instance refresh
@@ -199,6 +177,8 @@ jobs:
               --query 'InstanceRefreshes[0].Status' \
               --output text)
             
+            echo "Current refresh status: $STATUS"
+            
             if [ "$STATUS" = "Successful" ]; then
               echo "Instance refresh completed successfully"
               break
@@ -207,5 +187,7 @@ jobs:
               exit 1
             fi
             
+            echo "Refresh in progress. Checking again in 30 seconds..."
             sleep 30
           done
+          echo "Deployment completed successfully"
