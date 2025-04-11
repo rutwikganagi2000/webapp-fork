@@ -11,6 +11,7 @@ EOF
 
 # Update system packages
 echo "Updating package lists and upgrading packages..."
+sudo add-apt-repository universe  # Enable universe repository
 sudo apt update
 sudo apt upgrade -y
 
