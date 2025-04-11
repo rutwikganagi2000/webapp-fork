@@ -120,3 +120,19 @@ The application integrates with AWS CloudWatch for logging and metrics collectio
   - **Database query times**
   - **S3 operation times**
 
+## **Continuous Deployment (CD)**
+
+The Continuous Deployment (CD) pipeline ensures that any code merged into the `main` branch is automatically deployed to AWS infrastructure. 
+
+### Key Steps:
+- **Build Custom AMI**:  
+  Application code and dependencies are bundled into a custom AMI using **Packer**, with pre-installed dependencies and system services for easy deployment.
+
+- **Update Launch Template**:  
+  The new AMI ID is added to the latest version of the EC2 launch template, ensuring that new instances in the ASG use the updated AMI.
+
+- **Instance Refresh**:  
+  The ASG triggers an **instance refresh**, replacing old instances with new ones using the updated launch template. The refresh ensures zero-downtime.
+
+- **Monitor Deployment**:  
+  The workflow monitors the instance refresh process, logging any failures and ensuring a successful deployment.
