@@ -16,7 +16,17 @@ sudo apt upgrade -y
 
 # Install dependencies
 echo "Installing dependencies..."
-sudo apt install -y curl ca-certificates python3 python3-pip python3-venv unzip
+sudo apt install -y curl ca-certificates python3 python3-pip python3-venv unzip jq
+
+# Install AWS CLI
+echo "Installing AWS CLI..."
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+unzip /tmp/awscliv2.zip -d /tmp
+sudo /tmp/aws/install
+rm -rf /tmp/awscliv2.zip /tmp/aws
+
+# Verify AWS CLI installation
+aws --version
 
 # Install amazon-cloudwatch-agent
 echo "Installing amazon-cloudwatch-agent..."
