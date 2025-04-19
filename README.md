@@ -1,4 +1,4 @@
-# Health Check API Application
+# Health Check API Applications
 
 ## Prerequisites
 
